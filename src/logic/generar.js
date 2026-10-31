@@ -1,0 +1,332 @@
+// Propuesta de menú semanal y alternativas para cambiar un plato.
+import { conflictosReceta, esBloqueante, contarSemana, reglasCompletas } from './reglas.js';
+import { sumarDias, diaSemana, diasEntre } from './fechas.js';
+import { MEDIA_MINIMA } from './valoraciones.js';
+
+export const TIPOS = ['desayuno', 'comida', 'cena'];
+
+// Días que aguanta lo más perecedero de la receta (99 si todo es de despensa)
+export function frescura(receta, ingMap) {
+  let min = 99;
+  for (const ri of receta.receta_ingredientes || []) {
+    const ing = ri.ingrediente_id ? ingMap.get(ri.ingrediente_id) : null;
+    if (!ing || ing.dias_nevera == null || (ing.grupos || []).includes('basico')) continue;
+    if ((ing.grupos || []).includes('carne')) continue; // la carne se puede congelar
+    if (ing.dias_nevera < min) min = ing.dias_nevera;
+  }
+  return min;
+}
+
+// Primer día de la próxima semana.
+// Si no queda nada planificado desde hoy, empieza hoy. Si no, el siguiente día de compra
+// después del inicio de la última semana (si se solapa con ella, la última se acorta).
+export function siguienteInicio(menus, diaCompra, hoy, ultimoDia) {
+  if (!menus.length || !ultimoDia || ultimoDia < hoy) return hoy;
+  const ultimo = menus.reduce((a, b) => (a.semana_inicio > b.semana_inicio ? a : b));
+  let f = sumarDias(ultimo.semana_inicio, 1);
+  if (f < hoy) f = hoy;
+  for (let i = 0; i < 7 && diaSemana(f) !== diaCompra; i++) f = sumarDias(f, 1);
+  return f;
+}
+
+function azarCon(semilla) {
+  let s = 0;
+  for (const ch of String(semilla)) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Devuelve [{ fecha, tipo, receta_id }] para 7 días desde `inicio`.
+ * Rellena hueco a hueco con algo de azar (para que las semanas cambien), respetando las reglas,
+ * poniendo lo que caduca antes al principio y buscando una semana equilibrada.
+ */
+export function generarSemana({
+  inicio,
+  recetas,
+  ingMap,
+  restricciones,
+  reglas,
+  momentos,
+  recientes = new Set(),
+  medias = new Map(),
+  especial = null, // { dia: 0-6 (0 = domingo), tipo: 'comida' | 'cena' } o null
+  ultimoUso = new Map(), // receta_id -> última fecha en la que salió (para rotar los especiales)
+  intentos = 60,
+  semilla = Date.now(),
+}) {
+  const azar = azarCon(semilla);
+  const r = reglasCompletas(reglas);
+  const tipos = TIPOS.filter((t) => momentos.includes(t));
+  const permitidas = [];
+  const blandas = new Map();
+  for (const receta of recetas) {
+    const conf = conflictosReceta(receta, restricciones, ingMap);
+    if (conf.some(esBloqueante)) continue;
+    const media = medias.get(receta.id);
+    if (media != null && media < MEDIA_MINIMA) continue; // «No lo repetimos»: ya no sale sola
+    permitidas.push(receta);
+    blandas.set(receta.id, conf.length);
+  }
+  const fres = new Map(permitidas.map((x) => [x.id, frescura(x, ingMap)]));
+  // Mínimo de pescado: solo si hay platos de pescado que se puedan poner (en una casa sin pescado no cuenta)
+  const pescadoMin = permitidas.some((x) => x.proteina === 'pescado' && !x.capricho && !x.especial) ? r.pescado_min : 0;
+  const dias = Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
+  const finde = dias.map((f, i) => ({ f, i })).filter(({ f }) => [5, 6, 0].includes(diaSemana(f))).map(({ i }) => i);
+  const caprichos = permitidas.filter((x) => x.capricho && !x.especial);
+  const especiales = permitidas.filter((x) => x.especial);
+  const principales = tipos.filter((t) => t !== 'desayuno');
+  // Hueco del plato especial: un día fijo de la semana
+  let huecoEspecial = null;
+  if (especial && especial.dia != null && especiales.length && principales.length) {
+    const d = dias.findIndex((f) => diaSemana(f) === especial.dia);
+    const t = principales.includes(especial.tipo) ? especial.tipo : principales[0];
+    if (d >= 0) huecoEspecial = { d, t };
+  }
+  const totalHuecos = 7 * principales.length;
+  // Lo que se busca en una semana normal (sin pasarse de los máximos)
+  const objetivo = {
+    legumbre: Math.max(r.legumbre_min, Math.min(r.legumbre_min + 1, totalHuecos)),
+    carne: r.carne_max,
+    huevo: Math.min(r.huevos_max, 3),
+    otro: Math.max(1, Math.round(totalHuecos / 7)),
+  };
+  if (pescadoMin > 0) objetivo.pescado = pescadoMin;
+  // Lácteos y platos de verdura cuentan juntos ("otro")
+  const grupo = (x) => (x.proteina === 'lacteo' ? 'otro' : x.proteina);
+
+  const validas = [];
+  let mejor = null;
+  for (let k = 0; k < intentos; k++) {
+    const res = intentar();
+    if (!mejor || res.puntos > mejor.puntos) mejor = res;
+    if (res.valida) {
+      validas.push(res);
+      if (validas.length >= 6) break;
+    }
+  }
+  if (validas.length) {
+    validas.sort((a, b) => b.puntos - a.puntos);
+    return validas[Math.floor(azar() * Math.min(3, validas.length))].slots;
+  }
+  return mejor ? mejor.slots : [];
+
+  function intentar() {
+    const cuenta = { legumbre: 0, carne: 0, huevo: 0, capricho: 0, pescado: 0, otro: 0 };
+    const usadas = new Set();
+    const slots = [];
+    let puntos = 0;
+    let vacios = 0;
+    let hechos = 0;
+
+    // Primero el especial, rotando: lo que salió hace poco espera su turno y lo que gustó vuelve antes
+    let especialElegido = null;
+    if (huecoEspecial) {
+      const delMomento = especiales.filter((x) => (x.momentos || []).includes(huecoEspecial.t));
+      let mejorP = -Infinity;
+      for (const x of delMomento.length ? delMomento : especiales) {
+        if (x.proteina === 'carne' && r.carne_max < 1) continue;
+        if (x.proteina === 'huevo' && r.huevos_max < 1) continue;
+        let p = azar() * 3;
+        const media = medias.get(x.id);
+        if (media != null) p += (media - 3) * 0.5;
+        const ultima = ultimoUso.get(x.id);
+        if (ultima) {
+          const semanas = diasEntre(ultima, dias[0]) / 7;
+          if (semanas < 8) p -= (8 - semanas) * 1.5;
+        }
+        p -= 2 * (blandas.get(x.id) || 0);
+        if (p > mejorP) {
+          mejorP = p;
+          especialElegido = x;
+        }
+      }
+      if (especialElegido) {
+        usadas.add(especialElegido.id);
+        if (cuenta[grupo(especialElegido)] != null) cuenta[grupo(especialElegido)] += 1;
+        if (especialElegido.capricho) cuenta.capricho += 1;
+      }
+    }
+
+    let capricho = null;
+    const findeLibre = finde.filter((i) => !especialElegido || i !== huecoEspecial.d);
+    if (r.caprichos_max > cuenta.capricho && caprichos.length && findeLibre.length && azar() < 0.9) {
+      const d = findeLibre[Math.floor(azar() * findeLibre.length)];
+      const t = principales.includes('cena') && azar() < 0.75 ? 'cena' : principales.includes('comida') ? 'comida' : principales[0];
+      const cands = caprichos.filter((x) => (x.momentos || []).includes(t) && !(x.proteina === 'carne' && r.carne_max < 1));
+      if (cands.length) {
+        capricho = { d, t, receta: cands[Math.floor(azar() * cands.length)] };
+        cuenta.capricho += 1;
+        if (cuenta[grupo(capricho.receta)] != null) cuenta[grupo(capricho.receta)] += 1;
+        usadas.add(capricho.receta.id);
+      }
+    }
+
+    let desayunoAyer = null;
+    for (let d = 0; d < 7; d++) {
+      const delDia = [];
+      for (const t of tipos) {
+        if (t !== 'desayuno') hechos += 1;
+        if (especialElegido && huecoEspecial.d === d && huecoEspecial.t === t) {
+          slots.push({ fecha: dias[d], tipo: t, receta_id: especialElegido.id });
+          delDia.push(especialElegido.proteina);
+          continue;
+        }
+        if (capricho && capricho.d === d && capricho.t === t) {
+          slots.push({ fecha: dias[d], tipo: t, receta_id: capricho.receta.id });
+          delDia.push(capricho.receta.proteina);
+          continue;
+        }
+        const quedan = totalHuecos - hechos + 1; // huecos principales que faltan, contando este
+        const faltaLegumbre = r.legumbre_min - cuenta.legumbre;
+        const faltaPescado = pescadoMin - cuenta.pescado;
+        let elegida = null;
+        let mejorP = -Infinity;
+        for (const x of permitidas) {
+          if (x.capricho || x.especial || !(x.momentos || []).includes(t)) continue;
+          if (t !== 'desayuno' && usadas.has(x.id)) continue;
+          if (x.proteina === 'carne' && cuenta.carne >= r.carne_max) continue;
+          if (x.proteina === 'huevo' && cuenta.huevo >= r.huevos_max) continue;
+          let p = azar() * 4;
+          if (t === 'desayuno') {
+            if (x.id === desayunoAyer) p -= 3;
+          } else {
+            if (x.proteina === 'legumbre' && faltaLegumbre > 0 && faltaLegumbre >= quedan - 1) p += 8;
+            if (x.proteina === 'pescado' && faltaPescado > 0 && faltaPescado >= quedan - 1) p += 8;
+            const g = grupo(x);
+            if (objetivo[g] != null) p += cuenta[g] < objetivo[g] ? 1.2 : -2.5;
+            if (recientes.has(x.id)) p -= 2.5;
+            p -= 2 * (blandas.get(x.id) || 0);
+            if (delDia.includes(x.proteina) && ['huevo', 'carne'].includes(x.proteina)) p -= 3;
+            else if (delDia.includes(x.proteina)) p -= 1;
+            const f = fres.get(x.id);
+            if (f <= 3) p += d <= 1 ? 1 : d === 2 ? 0 : -4;
+            else if (f <= 5) p += d <= 3 ? 0.3 : -2;
+            if (x.proteina === 'carne' && d <= 1) p += 0.4;
+            if ((x.veces_cocinada || 0) > 0) p += 0.3;
+            const media = medias.get(x.id);
+            if (media != null) p += (media - 3) * 0.5; // lo que os gustó sale más
+          }
+          if (p > mejorP) {
+            mejorP = p;
+            elegida = x;
+          }
+        }
+        if (!elegida) {
+          slots.push({ fecha: dias[d], tipo: t, receta_id: null });
+          if (t !== 'desayuno') vacios += 1;
+          puntos -= 10;
+          continue;
+        }
+        puntos += mejorP;
+        slots.push({ fecha: dias[d], tipo: t, receta_id: elegida.id });
+        if (t === 'desayuno') {
+          desayunoAyer = elegida.id;
+        } else {
+          usadas.add(elegida.id);
+          if (cuenta[grupo(elegida)] != null) cuenta[grupo(elegida)] += 1;
+          delDia.push(elegida.proteina);
+        }
+      }
+    }
+    const valida = !vacios && cuenta.legumbre >= r.legumbre_min && cuenta.pescado >= pescadoMin;
+    if (cuenta.legumbre < r.legumbre_min) puntos -= 20 * (r.legumbre_min - cuenta.legumbre);
+    if (cuenta.pescado < pescadoMin) puntos -= 20 * (pescadoMin - cuenta.pescado);
+    return { slots, puntos, valida };
+  }
+}
+
+/**
+ * Alternativas para un hueco del menú, de mejor a peor.
+ * motivos: Set con 'apetece' | 'largo' | 'falta' | 'proteina'
+ */
+export function alternativas({
+  inicio,
+  fecha,
+  tipo,
+  actual,
+  comidasMenu,
+  recetas,
+  recetasMap,
+  ingMap,
+  restricciones,
+  reglas,
+  motivos,
+  enLista,
+  medias = new Map(),
+  huecoEspecial = false, // si es el hueco del plato especial, se proponen especiales
+  semilla = 1,
+}) {
+  const r = reglasCompletas(reglas);
+  const azar = azarCon(semilla);
+  const jitter = new Map(recetas.map((x) => [x.id, azar()]));
+  const otras = comidasMenu
+    .filter((c) => !(c.fecha === fecha && c.tipo === tipo) && c.tipo !== 'desayuno')
+    .map((c) => recetasMap.get(c.receta_id))
+    .filter(Boolean);
+  const enSemana = new Set(otras.map((x) => x.id));
+  const base = contarSemana(otras);
+  const desfase = diasEntre(inicio, fecha);
+  const comePescado = recetas.some((x) => x.proteina === 'pescado' && !conflictosReceta(x, restricciones, ingMap).some(esBloqueante));
+  const pescadoMin = comePescado ? r.pescado_min : 0;
+  const out = [];
+  for (const x of recetas) {
+    if (actual && x.id === actual.id) continue;
+    if (x.especial && !huecoEspecial) continue;
+    if (!(x.momentos || []).includes(tipo)) continue;
+    if (tipo !== 'desayuno' && enSemana.has(x.id)) continue;
+    const conf = conflictosReceta(x, restricciones, ingMap);
+    if (conf.some(esBloqueante)) continue;
+    let rompe = null;
+    if (tipo !== 'desayuno') {
+      const c = { ...base };
+      if (c[x.proteina] != null) c[x.proteina] += 1;
+      if (x.capricho) c.capricho += 1;
+      if (c.carne > r.carne_max || c.huevo > r.huevos_max || c.capricho > r.caprichos_max) continue;
+      if (c.legumbre < r.legumbre_min) rompe = 'legumbre';
+      else if (c.pescado < pescadoMin) rompe = 'pescado';
+    }
+    if (motivos.has('largo')) {
+      const limite = Math.min(actual?.tiempo_min ?? 999, 30);
+      if ((x.tiempo_min ?? 99) > limite) continue;
+    }
+    if (motivos.has('proteina') && actual && x.proteina === actual.proteina) continue;
+
+    const propios = (x.receta_ingredientes || []).filter((ri) => {
+      const ing = ri.ingrediente_id ? ingMap.get(ri.ingrediente_id) : null;
+      return !(ing && (ing.grupos || []).includes('basico'));
+    });
+    const yaEstan = propios.filter((ri) => ri.ingrediente_id && enLista.has(ri.ingrediente_id)).length;
+    const nuevos = propios.length - yaEstan;
+    const parte = propios.length ? yaEstan / propios.length : 0;
+
+    let p = jitter.get(x.id) * 1.2;
+    p += parte * (motivos.has('falta') ? 5 : 1.5);
+    if (rompe) p -= 3;
+    p -= 2 * conf.length;
+    if ((x.veces_cocinada || 0) > 0) p += 0.7;
+    const media = medias.get(x.id);
+    const noGusto = media != null && media < MEDIA_MINIMA;
+    if (media != null) p += (media - 3) * 0.6;
+    if (noGusto) p -= 4;
+    if (huecoEspecial && x.especial) p += 4;
+    const f = frescura(x, ingMap);
+    if (f < 99 && desfase > f) p -= 2;
+    if (motivos.has('largo')) p += (30 - (x.tiempo_min ?? 30)) / 15;
+
+    let razon = null;
+    if (noGusto) razon = 'No os convenció';
+    else if (rompe) razon = `Os quedaríais cortos de ${rompe}`;
+    else if (nuevos === 0) razon = 'No hay que comprar nada más';
+    else if (nuevos === 1) razon = 'Solo hay que comprar 1 cosa';
+    else if (nuevos <= 3) razon = `Solo hay que comprar ${nuevos} cosas`;
+    else if (f < 99 && desfase > f) razon = 'Lleva algo que aguanta poco';
+    out.push({ receta: x, puntos: p, razon, conflictos: conf });
+  }
+  return out.sort((a, b) => b.puntos - a.puntos);
+}
