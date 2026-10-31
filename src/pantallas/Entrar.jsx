@@ -3,6 +3,7 @@ import { useDatos } from '../datos.jsx';
 import { mensajeError } from '../supabase.js';
 import { Dibujo } from '../ui/Portada.jsx';
 import { marcaDe, temaGuardado } from '../tema.js';
+import { enPantallaDeInicio } from '../ui/Instalar.jsx';
 
 export function Marca({ texto }) {
   return (
@@ -59,7 +60,9 @@ export default function Entrar({ invitado }) {
         texto={
           invitado
             ? 'Te han invitado a compartir el menú de la semana y la lista de la compra. Crea tu cuenta para entrar.'
-            : 'El menú de la semana y la lista de la compra, para toda la casa.'
+            : enPantallaDeInicio()
+              ? 'Entra con el email y la contraseña que elegiste al crear tu cuenta.'
+              : 'El menú de la semana y la lista de la compra, para toda la casa.'
         }
       />
       <form className="formulario" onSubmit={enviar} noValidate>

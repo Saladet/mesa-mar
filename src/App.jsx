@@ -6,6 +6,7 @@ import { menuDeCompra } from './logic/semanas.js';
 import { aplicarTema, marcaDe, temaGuardado } from './tema.js';
 import { Dibujo } from './ui/Portada.jsx';
 import Tabs from './ui/Tabs.jsx';
+import Instalar from './ui/Instalar.jsx';
 import Entrar from './pantallas/Entrar.jsx';
 import SinHogar from './pantallas/SinHogar.jsx';
 import Semana from './pantallas/Semana.jsx';
@@ -129,6 +130,7 @@ export default function App() {
       {!d.enLinea ? <div className="sin-red">Sin conexión: ves lo último guardado. Lo que marques se guardará al volver la red.</div> : null}
       {pantalla}
       {conTabs ? <Tabs actual={actual} pendientes={pendientes} /> : null}
+      <Instalar />
       <Aviso />
     </>
   );

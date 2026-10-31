@@ -440,6 +440,12 @@ button.celda:disabled { cursor: default; opacity: 0.45; }
 .tirador { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--borde); flex: none; }
 .hoja-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .hoja-titulo { margin: 0; font-family: var(--display); font-size: 26px; line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; }
+.texto-instalar { margin: -6px 0 0; color: var(--gris); font-size: 15px; line-height: 1.45; }
+.pasos-instalar { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.paso-instalar { display: flex; align-items: flex-start; gap: 12px; font-size: 15.5px; line-height: 1.45; }
+.paso-instalar .ic { display: inline-block; vertical-align: -3px; }
+.paso-instalar-n { display: flex; flex: none; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--lima); color: var(--lima-tinta); font-size: 14px; font-weight: 800; }
+.tecla { display: inline-block; padding: 0 7px; border: 1px solid var(--borde); border-radius: 8px; background: var(--superficie); line-height: 1.5; }
 .boton-cerrar { width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--superficie); color: var(--tinta); }
 .grupo { margin: 0; padding: 0; border: 0; min-width: 0; }
 .grupo legend { padding: 0; margin-bottom: 10px; font-size: 15px; font-weight: 800; }

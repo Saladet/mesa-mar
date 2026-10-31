@@ -212,7 +212,7 @@ function TarjetaPersona({ persona, d }) {
         <span className="persona-nombre">{persona.nombre}</span>
         {esYo ? <span className="tu">Tú</span> : null}
       </div>
-      {!persona.user_id || peque ? (
+      {(!persona.user_id && !persona.invitacion) || peque ? (
         <div className="niveles" role="group" aria-label={`Cuánto come ${persona.nombre}`}>
           <button
             type="button"
