@@ -200,6 +200,7 @@ function Invitar({ persona, d }) {
 
 function TarjetaPersona({ persona, d }) {
   const [quitar, setQuitar] = useState(false);
+  const [salir, setSalir] = useState(false);
   const suyas = d.restricciones.filter((r) => r.persona_id === persona.id);
   const grupos = ORDEN_NIVEL.map((n) => [n, suyas.filter((r) => r.nivel === n)]).filter(([, rs]) => rs.length);
   const esYo = persona.id === d.yo?.id;
@@ -251,6 +252,21 @@ function TarjetaPersona({ persona, d }) {
       )}
       <AnadirRestriccion persona={persona} d={d} />
       {!persona.user_id && !peque ? <Invitar persona={persona} d={d} /> : null}
+      {esYo && d.personas.length > 1 ? (
+        <button
+          type="button"
+          className="boton-texto gris"
+          onClick={() => {
+            if (salir) d.acciones.salirDeCasa();
+            else {
+              setSalir(true);
+              setTimeout(() => setSalir(false), 3500);
+            }
+          }}
+        >
+          {salir ? 'Toca otra vez para salir de esta casa' : 'Salir de esta casa'}
+        </button>
+      ) : null}
       {!persona.user_id && !esYo ? (
         <button
           type="button"

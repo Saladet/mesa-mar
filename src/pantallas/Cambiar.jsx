@@ -179,7 +179,7 @@ export default function Cambiar({ comidaId }) {
             </div>
           ) : (
             <div className="vacio-suave">
-              No hay más platos que encajen con estas condiciones. Quita alguna o pídele a Claude recetas nuevas para el recetario.
+              No hay más platos que encajen con estas condiciones. Quita alguna, o añadid recetas nuevas desde Recetas pegando el enlace de una web.
             </div>
           )}
         </fieldset>

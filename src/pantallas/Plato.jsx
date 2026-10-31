@@ -165,7 +165,7 @@ export default function PantallaPlato({ comidaId, recetaId }) {
 
         {(receta.etiquetas || []).includes('auto') ? (
           <p className="nota-gris" style={{ margin: '-6px 0 0' }}>
-            Leída automáticamente de la web. Si algo no cuadra (cantidades o pasos), pedidle a Claude que la repase.
+            Leída automáticamente de la web. Si algo no cuadra (cantidades o pasos), mirad la receta original.
           </p>
         ) : null}
 

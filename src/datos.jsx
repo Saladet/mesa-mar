@@ -590,8 +590,8 @@ export function ProveedorDatos({ children }) {
   }
 
   // Pegar un enlace: se lee la receta de la web y se crea al momento. Si la web no trae los datos
-  // de la receta, queda pendiente para que Claude la importe a mano.
-  // Devuelve { estado: 'importada' | 'repetida' | 'pendiente', receta?, titulo?, avisos? }
+  // de la receta, la importación se da por fallida.
+  // Devuelve { estado: 'importada' | 'repetida' | 'fallida', receta?, titulo?, avisos? }
   async function importarEnlace(url) {
     const d = ref.current;
     const repetida = d.recetas.find((r) => mismaUrl(r.url_origen, url));
@@ -611,14 +611,20 @@ export function ProveedorDatos({ children }) {
     } catch (e) {
       console.error(e);
     }
-    if (!web) return { estado: 'pendiente' };
+    // Aquí nadie la completa a mano: si la web no se deja leer, se da por fallida y no se queda en la lista
+    const fallida = async () => {
+      await supabase.from('importaciones').update({ estado: 'fallida' }).eq('id', imp.id);
+      setDatos((x) => ({ ...x, importaciones: x.importaciones.filter((i) => i.id !== imp.id) }));
+      return { estado: 'fallida' };
+    };
+    if (!web) return fallida();
     const { receta, ingredientes, sinCatalogo, llevaPescado } = recetaDesdeWeb(web, { hogarId: d.hogar.id, url, ingredientes: d.ingredientes });
     const r = await supabase.rpc('crear_receta', { p_receta: receta, p_ingredientes: ingredientes });
     if (r.error) {
       console.error(r.error);
-      return { estado: 'pendiente' };
+      return fallida();
     }
-    await supabase.from('importaciones').update({ estado: 'importada', receta_id: r.data }).eq('id', imp.id);
+    await supabase.from('importaciones').update({ estado: 'hecha', receta_id: r.data }).eq('id', imp.id);
     setDatos((x) => ({ ...x, importaciones: x.importaciones.filter((i) => i.id !== imp.id) }));
     await cargar();
     return { estado: 'importada', receta: { id: r.data }, titulo: receta.titulo, avisos: { sinCatalogo, llevaPescado } };
@@ -706,6 +712,30 @@ export function ProveedorDatos({ children }) {
     await rehacerListasVivas(personas);
   }
 
+  // Salir de esta casa: la persona de esta cuenta deja de estar en ella (con sus valoraciones).
+  // Antes se rehacen las listas sin ella, porque después ya no se puede entrar a cambiarlas.
+  async function salirDeCasa() {
+    const d = ref.current;
+    const mia = d.personas.find((p) => p.user_id === uidRef.current);
+    if (!mia || d.personas.length < 2) return false;
+    await rehacerListasVivas(d.personas.filter((p) => p.id !== mia.id));
+    const r = await supabase.from('personas').delete().eq('id', mia.id);
+    if (r.error) {
+      avisar(mensajeError(r.error), 'error');
+      return false;
+    }
+    try {
+      localStorage.removeItem(CLAVE_CACHE);
+      localStorage.removeItem(CLAVE_PENDIENTES);
+    } catch {
+      /* nada */
+    }
+    setDatos(VACIO);
+    await cargar();
+    avisar('Has salido de esta casa.');
+    return true;
+  }
+
   // Si cambia quién come, las listas que aún sirven se recalculan (lo marcado se conserva)
   async function rehacerListasVivas(personas) {
     const d = ref.current;
@@ -791,6 +821,7 @@ export function ProveedorDatos({ children }) {
       anadirPersona,
       quitarPersona,
       cambiarRacion,
+      salirDeCasa,
       invitar,
       entrar,
       crearCuenta,

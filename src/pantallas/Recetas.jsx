@@ -77,7 +77,7 @@ export default function Recetas() {
         d.avisar(`Ya la teníais: ${r.receta.titulo}.`);
         ir(`receta/${r.receta.id}`);
       } else {
-        d.avisar('Esa web no deja leer la receta sola. Queda pendiente: pídele a Claude que la importe.', 'error');
+        d.avisar('Esa web no deja leer la receta sola. Prueba con la misma receta en otra web.', 'error');
       }
     } catch (err) {
       d.avisar(mensajeError(err), 'error');
@@ -142,7 +142,7 @@ export default function Recetas() {
                 {dominio(imp.url)} · {imp.url}
               </span>
             ))}
-            <span className="nota-gris">Estas webs no se han podido leer solas. Dile a Claude «importa las recetas pendientes de Mesa» y las añade.</span>
+            <span className="nota-gris">Estas webs no se han podido leer solas. Probad con la misma receta en otra web.</span>
           </div>
         ) : null}
 
@@ -180,7 +180,7 @@ export default function Recetas() {
           <div className="vacio-suave">{q ? 'No hay recetas con eso.' : 'No hay recetas en este grupo todavía.'}</div>
         )}
         <p className="nota-gris" style={{ margin: 0 }}>
-          {d.recetas.length} recetas en el recetario. ¿Queréis más? Pedídselas a Claude y aparecerán aquí.
+          {d.recetas.length} recetas en el recetario. ¿Queréis más? Pegad arriba el enlace de una receta de cualquier web de cocina.
         </p>
       </main>
     </div>
