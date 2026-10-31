@@ -13,9 +13,11 @@ const memoria = { filtro: 'todas' };
 // Cada filtro recibe la receta y su resumen de notas (si lo hay)
 const FILTROS = [
   ['todas', 'Todas', () => true],
+  ['vuestras', 'Vuestras', (r) => r.origen === 'vuestra'],
   ['favoritas', 'Favoritas', (r, nota) => nota?.media != null && nota.media >= 4],
   ['rapidas', 'Rápidas', (r) => (r.tiempo_min || 99) <= 20],
   ['legumbre', 'Legumbre', (r) => r.proteina === 'legumbre'],
+  ['pescado', 'Pescado', (r) => r.proteina === 'pescado'],
   ['carne', 'Carne', (r) => r.proteina === 'carne'],
   ['huevo', 'Huevo', (r) => r.proteina === 'huevo'],
   ['vegetal', 'Vegetal', (r) => r.proteina === 'lacteo' || r.proteina === 'otro'],
