@@ -25,6 +25,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Copia de prueba: si existe la rama «prueba», se publica en /prueba/ (lee los datos, no guarda nada)
+      - id: prueba
+        run: echo "hay=$(git ls-remote --heads origin prueba | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
+      - if: steps.prueba.outputs.hay == '1'
+        uses: actions/checkout@v4
+        with:
+          ref: prueba
+          path: rama-prueba
+      - if: steps.prueba.outputs.hay == '1'
+        working-directory: rama-prueba
+        run: npm ci && VITE_PRUEBA=1 npx vite build --outDir ../dist/prueba --emptyOutDir
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -53,6 +53,7 @@ self.addEventListener('fetch', (evento) => {
   if (peticion.method !== 'GET') return;
   const url = new URL(peticion.url);
   if (url.origin === self.location.origin) {
+    if (url.pathname.includes('/prueba/')) return; // la copia de prueba va por su cuenta
     if (peticion.mode === 'navigate') evento.respondWith(primeroRed(peticion, './'));
     else if (url.pathname.includes('/assets/')) evento.respondWith(primeroCache(peticion));
     else evento.respondWith(primeroRed(peticion));
