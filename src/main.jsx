@@ -6,6 +6,7 @@ import { aplicarTema, temaAlAbrir } from './tema.js';
 import '@fontsource-variable/bricolage-grotesque/opsz.css';
 import '@fontsource-variable/manrope/wght.css';
 import './estilos.css';
+import { PRUEBA } from './config.js';
 
 aplicarTema(temaAlAbrir());
 
@@ -17,7 +18,12 @@ createRoot(document.getElementById('app')).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if (PRUEBA) {
+  document.title = 'Mesa · prueba';
+  document.documentElement.classList.add('es-prueba');
+}
+
+if ('serviceWorker' in navigator && import.meta.env.PROD && !PRUEBA) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });

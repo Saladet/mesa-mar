@@ -10,3 +10,6 @@ export const PREFIJO = 'mesa-mar';
 
 // Colores con los que abre la app la primera vez (cada casa puede cambiarlos en Hogar)
 export const TEMA = 'mar';
+
+// Copia de prueba (se publica aparte en /prueba/): enseña los datos de verdad pero no guarda nada
+export const PRUEBA = import.meta.env.VITE_PRUEBA === '1';

@@ -468,6 +468,11 @@ button.celda:disabled { cursor: default; opacity: 0.45; }
 .opcion:has(input:checked) { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); }
 .opcion-textos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .opcion-titulo { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.aviso-opcion { font-size: 12.5px; font-weight: 700; line-height: 1.3; color: var(--especial); }
+.buscar-hoja { position: relative; display: flex; align-items: center; }
+.buscar-hoja .ic { position: absolute; left: 14px; color: var(--gris); pointer-events: none; }
+.buscar-hoja .campo { padding-left: 42px; background: var(--superficie); border-color: transparent; }
+.buscar-hoja .campo:focus { background: var(--blanco); }
 .vacio-suave { padding: 16px; border-radius: 18px; background: var(--superficie); color: var(--gris); font-size: 14px; }
 
 /* ---------- Modo cocina ---------- */
@@ -657,4 +662,32 @@ button.celda:disabled { cursor: default; opacity: 0.45; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Poner una receta en el menú ---------- */
+.segmentado.claro { background: var(--superficie); }
+.segmentado.claro button { color: var(--gris); }
+.segmentado.claro button.on { background: var(--verde); color: var(--blanco); }
+.poner-tabla { display: grid; gap: 6px; align-items: stretch; }
+.poner-cab { font-size: 12px; font-weight: 800; color: var(--gris); text-transform: uppercase; letter-spacing: 0.04em; padding: 0 2px; }
+.poner-dia { display: flex; align-items: center; font-size: 14px; font-weight: 800; }
+.poner-celda {
+  display: flex; align-items: center; gap: 5px; min-height: 52px; min-width: 0; padding: 8px 10px;
+  border: 1px solid var(--borde); border-radius: 14px; background: var(--blanco);
+  color: var(--tinta); font: inherit; font-size: 13px; font-weight: 600; line-height: 1.25; text-align: left; cursor: pointer;
+}
+.poner-celda span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.poner-celda.libre { border-style: dashed; color: var(--gris); }
+.poner-celda.on { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); background: var(--lima); color: var(--lima-tinta); }
+.poner-celda:disabled { cursor: default; opacity: 0.55; }
+.poner-resumen { display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.4; }
+.poner-resumen .aviso-opcion { display: flex; align-items: flex-start; gap: 5px; }
+.poner-resumen .aviso-opcion .ic { margin-top: 2px; }
+
+/* Copia de prueba: la cinta arriba y los avisos un poco más abajo para que no se tapen */
+.es-prueba .toast { top: calc(44px + var(--arriba)); }
+.cinta-prueba {
+  position: fixed; z-index: 60; top: calc(6px + var(--arriba)); left: 50%; transform: translateX(-50%);
+  padding: 4px 12px; border-radius: 999px; background: var(--especial); color: var(--blanco);
+  font-size: 12px; font-weight: 800; pointer-events: none; white-space: nowrap;
 }

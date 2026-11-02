@@ -8,6 +8,7 @@ import { NOMBRE_TIPO } from '../logic/semanas.js';
 import { alternativas } from '../logic/generar.js';
 import { formatoMedia } from '../logic/valoraciones.js';
 import { volver } from '../ruta.js';
+import { buscarRecetas, avisosHueco, textoCompra, ingredientesEnLista } from '../logic/elegir.js';
 
 const MOTIVOS = [
   ['apetece', 'No me apetece'],
@@ -16,6 +17,7 @@ const MOTIVOS = [
   ['proteina', 'Otra proteína'],
 ];
 const POR_PAGINA = 3;
+const MAX_BUSQUEDA = 40;
 
 export default function Cambiar({ comidaId }) {
   const d = useDatos();
@@ -27,6 +29,7 @@ export default function Cambiar({ comidaId }) {
   const [elegida, setElegida] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [semilla] = useState(() => Math.floor(Math.random() * 1e6));
+  const [busqueda, setBusqueda] = useState('');
 
   const cerrar = () => volver('semana');
 
@@ -75,9 +78,35 @@ export default function Cambiar({ comidaId }) {
     });
   }, [comida, menu, actual, d.comidas, d.recetas, d.recetasMap, d.ingMap, d.restricciones, d.hogar, d.medias, huecoEspecial, motivos, semilla]);
 
+  // Buscador: cualquier receta del recetario, aunque no encaje; se avisa de lo que rompe
+  const buscando = busqueda.trim().length > 0;
+  const encontradas = useMemo(() => {
+    if (!comida || !menu || !buscando) return [];
+    const comidasMenu = d.comidas.filter((c) => c.menu_id === menu.id);
+    const enLista = ingredientesEnLista(comidasMenu, d.recetasMap, comida.id);
+    return buscarRecetas({ recetas: d.recetas, texto: busqueda, excluir: actual?.id })
+      .slice(0, MAX_BUSQUEDA)
+      .map((receta) => {
+        const avisos = avisosHueco({
+          receta,
+          fecha: comida.fecha,
+          tipo: comida.tipo,
+          comidasMenu,
+          recetasMap: d.recetasMap,
+          recetas: d.recetas,
+          restricciones: d.restricciones,
+          ingMap: d.ingMap,
+          reglas: d.hogar?.reglas,
+          personasMap: d.personasMap,
+        });
+        return { receta, avisos, razon: avisos.length ? null : textoCompra(receta, enLista, d.ingMap) };
+      });
+  }, [comida, menu, actual, buscando, busqueda, d.comidas, d.recetas, d.recetasMap, d.ingMap, d.restricciones, d.hogar, d.personasMap]);
+
   const paginas = Math.max(1, Math.ceil(opciones.length / POR_PAGINA));
   const visibles = opciones.slice(pagina * POR_PAGINA, pagina * POR_PAGINA + POR_PAGINA);
-  const seleccion = visibles.find((o) => o.receta.id === elegida) ? elegida : visibles[0]?.receta.id ?? null;
+  const lista = buscando ? encontradas : visibles;
+  const seleccion = lista.find((o) => o.receta.id === elegida) ? elegida : lista[0]?.receta.id ?? null;
 
   useEffect(() => setPagina(0), [motivos]);
 
@@ -138,7 +167,20 @@ export default function Cambiar({ comidaId }) {
           </button>
         </div>
 
-        {actual ? (
+        <label className="buscar-hoja">
+          <Icono n="buscar" t={18} />
+          <input
+            type="search"
+            className="campo"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar en el recetario"
+            aria-label="Buscar en el recetario"
+            enterKeyHint="search"
+          />
+        </label>
+
+        {actual && !buscando ? (
           <fieldset className="grupo">
             <legend>¿Qué no os convence?</legend>
             <div className="chips-sel">
@@ -153,10 +195,16 @@ export default function Cambiar({ comidaId }) {
         ) : null}
 
         <fieldset className="grupo">
-          <legend>Alternativas que encajan en la semana</legend>
-          {visibles.length ? (
+          <legend>
+            {!buscando
+              ? 'Alternativas que encajan en la semana'
+              : encontradas.length >= MAX_BUSQUEDA
+                ? `Las primeras ${MAX_BUSQUEDA} recetas del recetario`
+                : `${encontradas.length} ${encontradas.length === 1 ? 'receta' : 'recetas'} del recetario`}
+          </legend>
+          {lista.length ? (
             <div className="opciones">
-              {visibles.map(({ receta, razon }) => (
+              {lista.map(({ receta, razon, avisos }) => (
                 <label key={receta.id} className="opcion">
                   <input type="radio" name="alternativa" checked={seleccion === receta.id} onChange={() => setElegida(receta.id)} />
                   <Portada receta={receta} forma="mini" />
@@ -173,10 +221,13 @@ export default function Cambiar({ comidaId }) {
                         .filter(Boolean)
                         .join(' · ')}
                     </span>
+                    {avisos?.length ? <span className="aviso-opcion">{avisos.join(' · ')}</span> : null}
                   </span>
                 </label>
               ))}
             </div>
+          ) : buscando ? (
+            <div className="vacio-suave">No hay ninguna receta con «{busqueda.trim()}». Prueba con otra palabra o un ingrediente.</div>
           ) : (
             <div className="vacio-suave">
               No hay más platos que encajen con estas condiciones. Quita alguna, o añadid recetas nuevas desde Recetas pegando el enlace de una web.
@@ -185,7 +236,7 @@ export default function Cambiar({ comidaId }) {
         </fieldset>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
-          {paginas > 1 ? (
+          {!buscando && paginas > 1 ? (
             <button className="boton borde" type="button" onClick={() => setPagina((pagina + 1) % paginas)}>
               {pagina + 1 < paginas ? `Ver otras ${Math.min(POR_PAGINA, opciones.length - (pagina + 1) * POR_PAGINA)}` : 'Ver las primeras'}
             </button>

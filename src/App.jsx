@@ -12,6 +12,8 @@ import SinHogar from './pantallas/SinHogar.jsx';
 import Semana from './pantallas/Semana.jsx';
 import PantallaPlato from './pantallas/Plato.jsx';
 import Cambiar from './pantallas/Cambiar.jsx';
+import Poner from './pantallas/Poner.jsx';
+import { PRUEBA } from './config.js';
 import Cocinar from './pantallas/Cocinar.jsx';
 import Lista from './pantallas/Lista.jsx';
 import Recetas from './pantallas/Recetas.jsx';
@@ -107,6 +109,14 @@ export default function App() {
       );
       break;
     }
+    case 'poner':
+      pantalla = (
+        <>
+          <PantallaPlato recetaId={ruta.id} />
+          <Poner recetaId={ruta.id} />
+        </>
+      );
+      break;
     case 'lista':
       pantalla = <Lista />;
       break;
@@ -121,16 +131,17 @@ export default function App() {
   }
 
   const actual = ruta.nombre === 'cambiar' ? 'semana' : CON_TABS.has(ruta.nombre) ? ruta.nombre : 'semana';
-  const conTabs = CON_TABS.has(ruta.nombre) || !['plato', 'receta', 'cocinar'].includes(ruta.nombre);
+  const conTabs = CON_TABS.has(ruta.nombre) || !['plato', 'receta', 'cocinar', 'poner'].includes(ruta.nombre);
   const compra = menuDeCompra(d.menus, d.comidas, hoyISO());
   const pendientes = compra ? d.lista.filter((x) => x.menu_id === compra.id && !x.en_casa && !x.marcado).length : 0;
 
   return (
     <>
+      {PRUEBA ? <div className="cinta-prueba">Prueba · no se guarda nada</div> : null}
       {!d.enLinea ? <div className="sin-red">Sin conexión: ves lo último guardado. Lo que marques se guardará al volver la red.</div> : null}
       {pantalla}
       {conTabs ? <Tabs actual={actual} pendientes={pendientes} /> : null}
-      <Instalar />
+      {PRUEBA ? null : <Instalar />}
       <Aviso />
     </>
   );

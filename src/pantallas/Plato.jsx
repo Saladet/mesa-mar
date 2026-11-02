@@ -250,7 +250,12 @@ export default function PantallaPlato({ comidaId, recetaId }) {
             <Icono n="cambiar" />
             <span>Cambiar</span>
           </a>
-        ) : null}
+        ) : (
+          <a className="boton borde" href={`#/poner/${receta.id}`} aria-label="Poner en el menú">
+            <Icono n="semana" />
+            <span>Al menú</span>
+          </a>
+        )}
         <button className="boton flex" type="button" onClick={() => ir(comida ? `cocinar/${receta.id}/${comida.id}` : `cocinar/${receta.id}`)} disabled={!receta.pasos?.length}>
           Empezar a cocinar
         </button>

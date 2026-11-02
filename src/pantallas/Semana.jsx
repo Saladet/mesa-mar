@@ -21,6 +21,12 @@ export function pedirMover(comidaId) {
   memoria.mover = comidaId;
 }
 
+// Al volver a la semana, que enseñe ese día (por ejemplo, después de poner una receta)
+export function verDia(menuId, dia) {
+  memoria.menuId = menuId;
+  memoria.dia = dia;
+}
+
 function leerVista() {
   try {
     return localStorage.getItem(`${PREFIJO}-vista`) === 'semana' ? 'semana' : 'dia';
