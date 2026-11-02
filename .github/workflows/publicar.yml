@@ -19,15 +19,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
-      # Copia de prueba: si existe la rama «prueba», se publica en /prueba/ (lee los datos, no guarda nada)
+      # Copia de prueba: si la rama «prueba» tiene cambios que aún no están en main, se publica en /prueba/
+      # (lee los datos de verdad, no guarda nada). Cuando sus cambios pasan a main, deja de publicarse.
       - id: prueba
-        run: echo "hay=$(git ls-remote --heads origin prueba | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
+        run: |
+          if git rev-parse --verify --quiet origin/prueba > /dev/null && [ "$(git rev-list --count HEAD..origin/prueba)" -gt 0 ]; then
+            echo "hay=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "hay=0" >> "$GITHUB_OUTPUT"
+          fi
       - if: steps.prueba.outputs.hay == '1'
         uses: actions/checkout@v4
         with:
