@@ -40,7 +40,7 @@ function guardarDescartadas(conjunto) {
 
 // Puede escribir la suya y la de quien todavía no tiene cuenta
 export function puedeValorarPor(persona, yo) {
-  return !!persona && !!yo && (persona.id === yo.id || !persona.user_id);
+  return !!persona && !!yo && !yo.oculta && (persona.id === yo.id || !persona.user_id);
 }
 
 function FormularioPersona({ persona, receta, fecha, editable, esYo, abrirComentario }) {
@@ -264,7 +264,7 @@ export function AvisoValorar() {
     ? hecha.comida
     : pendienteDeValorar({ comidas: d.comidas, valoraciones: d.valoraciones, persona: d.yo, hoy, hora, descartadas });
   const receta = comida ? d.recetasMap.get(comida.receta_id) : null;
-  if (!comida || !receta || !d.yo) return null;
+  if (!comida || !receta || !d.yo || d.yo.oculta) return null; // el tester no puntúa
 
   async function puntuar(n) {
     setHecha({ comida, puntuacion: n });

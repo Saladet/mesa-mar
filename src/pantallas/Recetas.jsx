@@ -51,6 +51,8 @@ export default function Recetas() {
   const regla = FILTROS.find((f) => f[0] === filtro) || FILTROS[0];
   const q = normalizar(busqueda);
   const hayDesayunos = d.recetas.some((r) => (r.momentos || []).includes('desayuno'));
+  // «Vuestras» solo si la casa tiene recetas suyas de familia
+  const hayVuestras = d.recetas.some((r) => r.origen === 'vuestra');
   const visibles = d.recetas
     .filter((r) => regla[2](r, d.notas.get(r.id)))
     .filter((r) => filtro === 'desayunos' || !((r.momentos || []).length === 1 && r.momentos[0] === 'desayuno'))
@@ -149,7 +151,7 @@ export default function Recetas() {
         ) : null}
 
         <div className="filtros" role="group" aria-label="Filtrar recetas">
-          {FILTROS.filter((f) => f[0] !== 'desayunos' || hayDesayunos).map(([id, texto]) => (
+          {FILTROS.filter((f) => (f[0] !== 'desayunos' || hayDesayunos) && (f[0] !== 'vuestras' || hayVuestras)).map(([id, texto]) => (
             <button
               key={id}
               type="button"

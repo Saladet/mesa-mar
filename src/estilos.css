@@ -56,6 +56,47 @@
   --sombra: 14, 30, 44;
 }
 
+/* Colores «Rock» (rock psicodélico de los 60: morado, mostaza, naranja y magenta). Solo para la casa que lo tiene */
+:root[data-tema='rock'] {
+  --verde: #2D1145;
+  --verde-2: #3D1A5B;
+  --verde-3: #512870;
+  --verde-borde: #6B3F8C;
+  --lima: #FFB627;
+  --lima-2: #FFD27A;
+  --lima-tinta: #2A1300;
+  --claro: #F8EEF8;
+  --claro-2: #CDB6DA;
+  --tinta: #24142F;
+  --gris: #6A5876;
+  --superficie: #F8F3F9;
+  --borde: #E7DCEC;
+  --linea: #F1E9F4;
+  --acento: #B02A62;
+  --discontinua: #B7A6C3;
+  --tachado: #786886;
+  --sombra: 36, 12, 52;
+  --display: 'Shrikhand', 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+}
+/* Shrikhand solo tiene un grosor: sin negrita inventada y con algo menos de tamaño */
+:root[data-tema='rock'] :is(.cab-titulo, .titulo-dia, .preparar h3, .plato-titulo, .subtitulo, .aviso-valorar h3, .aviso-especial-titulo, .hoja-titulo, .fin-cocina h2, .persona-nombre, .marca h1, .bienvenida h1, .tour-bocadillo h2) {
+  font-weight: 400;
+  letter-spacing: 0;
+  font-synthesis: none;
+}
+:root[data-tema='rock'] .cab-titulo { font-size: 31px; line-height: 1.08; }
+:root[data-tema='rock'] .cab-titulo.medio { font-size: 28px; }
+:root[data-tema='rock'] .plato-titulo { font-size: 25px; line-height: 1.18; }
+:root[data-tema='rock'] .marca h1 { font-size: 46px; line-height: 1.05; }
+/* Los números y los textos pequeños, con la letra de siempre: se leen mejor */
+:root[data-tema='rock'] :is(.dia .num, .tablero-dia .num, .progreso-cuenta, .stepper output, .cocina-cab .nombre) { font-family: var(--ui); }
+/* Anillos psicodélicos (y de vinilo) en las cabeceras */
+:root[data-tema='rock'] :is(.cabecera, .pantalla-verde, .bienvenida, .cargando) {
+  background-image:
+    repeating-radial-gradient(circle at 100% 0, rgba(255, 182, 39, 0.09) 0 2px, transparent 2px 17px),
+    radial-gradient(circle at 100% 0, rgba(226, 54, 110, 0.38), rgba(226, 54, 110, 0) 62%);
+}
+
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; background: var(--linea); }
 body {
@@ -690,4 +731,76 @@ button.celda:disabled { cursor: default; opacity: 0.45; }
   position: fixed; z-index: 60; top: calc(6px + var(--arriba)); left: 50%; transform: translateX(-50%);
   padding: 4px 12px; border-radius: 999px; background: var(--especial); color: var(--blanco);
   font-size: 12px; font-weight: 800; pointer-events: none; white-space: nowrap;
+}
+
+/* ---------- Bienvenida guiada (casas con hogares.bienvenida) ---------- */
+.bienvenida {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  max-width: 480px; margin: 0 auto;
+  padding: calc(32px + var(--arriba)) 24px calc(32px + var(--abajo));
+  background-color: var(--verde); color: var(--claro);
+}
+.bienvenida h1 { margin: 0; font-family: var(--display); font-size: 36px; line-height: 1.08; font-weight: 800; }
+.bienvenida p { margin: 0; font-size: 18px; line-height: 1.45; color: var(--claro-2); }
+.bienvenida p b { color: var(--claro); }
+.bienvenida-paso { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lima); }
+.bienvenida-acciones { display: flex; flex-direction: column; gap: 10px; }
+.chip-tester { align-self: flex-start; padding: 6px 12px; border-radius: 999px; background: var(--especial-fondo); color: var(--especial); font-size: 13px; font-weight: 800; }
+.opciones-grandes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opciones-grandes.una { grid-template-columns: 1fr; }
+.opcion-grande {
+  min-height: 62px; padding: 12px 16px;
+  border: 2px solid var(--verde-borde); border-radius: 18px;
+  background: var(--verde-2); color: var(--claro);
+  font-size: 18px; font-weight: 700; line-height: 1.2; text-align: left;
+}
+.opcion-grande small { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; color: var(--claro-2); }
+.opcion-grande.on { border-color: var(--lima); background: var(--lima); color: var(--lima-tinta); }
+.opcion-grande.on small { color: var(--lima-tinta); }
+.opcion-grande.ancha { grid-column: 1 / -1; }
+.boton.grande { min-height: 60px; font-size: 18px; }
+.bienvenida .cargando-disco { align-self: center; }
+.bienvenida .cargando-disco svg { animation: girar 2.4s linear infinite; }
+
+/* ---------- Explicación paso a paso (tour) ---------- */
+.tour-velo { position: fixed; inset: 0; z-index: 45; }
+.tour-velo.oscuro { background: rgba(var(--sombra), 0.74); }
+.tour-foco {
+  position: fixed; z-index: 46; pointer-events: none;
+  border-radius: 18px;
+  box-shadow: 0 0 0 4px var(--lima), 0 0 0 200vmax rgba(var(--sombra), 0.74);
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+.tour-bocadillo {
+  position: fixed; z-index: 47;
+  left: 50%; transform: translateX(-50%);
+  width: min(calc(100% - 28px), 420px);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px 18px 16px; border-radius: 24px;
+  background: var(--blanco); color: var(--tinta);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  animation: aparecer 0.2s ease-out;
+}
+.tour-bocadillo h2 { margin: 0; padding-right: 64px; font-family: var(--display); font-size: 23px; line-height: 1.15; font-weight: 800; }
+.tour-bocadillo p { margin: 0; font-size: 17px; line-height: 1.45; }
+.tour-cuenta { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gris); }
+.tour-botones { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.tour-botones .boton { min-width: 150px; min-height: 54px; font-size: 17px; }
+.tour-saltar { position: absolute; top: 12px; right: 12px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--superficie); color: var(--gris); font-size: 13px; font-weight: 700; }
+
+/* Hogar: volver a ver la explicación y el aviso del tester */
+.guia-hogar { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 22px; background: var(--superficie); }
+.guia-hogar b { font-size: 16px; }
+.guia-hogar .fila-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.aviso-tester { padding: 12px 14px; border-radius: 16px; background: var(--especial-fondo); color: var(--especial); font-size: 14px; line-height: 1.4; }
+.nota-clave { font-size: 13.5px; line-height: 1.4; color: var(--claro-2); }
+
+/* Móviles bajitos (iPhone SE y parecidos): todo un poco más compacto para que quepa sin bajar */
+@media (max-height: 700px) {
+  .bienvenida { gap: 16px; padding-top: calc(20px + var(--arriba)); padding-bottom: calc(20px + var(--abajo)); }
+  .bienvenida h1 { font-size: 30px; }
+  .bienvenida p { font-size: 16.5px; }
+  .opcion-grande { min-height: 54px; padding: 10px 14px; font-size: 17px; }
+  .tour-bocadillo p { font-size: 16px; }
 }

@@ -1,0 +1,30 @@
+{
+  "name": "Mesa",
+  "short_name": "Mesa",
+  "description": "Menú semanal, lista de la compra compartida y recetas de casa.",
+  "lang": "es",
+  "start_url": "./#/?tema=rock",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2D1145",
+  "theme_color": "#2D1145",
+  "icons": [
+    {
+      "src": "icons/icon-192-rock.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512-rock.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-512-rock.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

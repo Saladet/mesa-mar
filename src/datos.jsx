@@ -6,7 +6,7 @@ import { generarSemana, siguienteInicio } from './logic/generar.js';
 import { hoyISO, capital } from './logic/fechas.js';
 import { normalizar } from './logic/reglas.js';
 import { ordenarMenus, finDelMenu, diasDelMenu, menusVivos } from './logic/semanas.js';
-import { comensalesDe, textoComensales } from './logic/raciones.js';
+import { comensalesDe, textoComensales, quienesComen } from './logic/raciones.js';
 import { TEMA_INICIAL } from './tema.js';
 import { resumenNotas, mediasDe, ponerValoracion, quitarValoracion, buscarValoracion } from './logic/valoraciones.js';
 import { recetaDesdeWeb, mismaUrl } from './logic/importar.js';
@@ -88,6 +88,8 @@ export function ProveedorDatos({ children }) {
   const [sesion, setSesion] = useState(undefined); // undefined = comprobando
   const [datos, setDatos] = useState(VACIO);
   const [estado, setEstado] = useState('iniciando');
+  // true cuando ya ha llegado lo del servidor en esta sesión (no solo lo guardado en el móvil)
+  const [fresco, setFresco] = useState(false);
   const [enLinea, setEnLinea] = useState(() => navigator.onLine);
   const [aviso, setAviso] = useState(null);
   const ref = useRef(datos);
@@ -130,6 +132,10 @@ export function ProveedorDatos({ children }) {
           localStorage.removeItem(CLAVE_INVITACION);
           if (r.data) avisar('Ya estás dentro. ¡A la mesa!');
           else avisar('Esa invitación ya se usó o no es válida.', 'error');
+        } else if (/otra_casa/.test(r.error.message || '')) {
+          // Una cuenta solo puede estar en una casa
+          localStorage.removeItem(CLAVE_INVITACION);
+          avisar('Con esta cuenta ya estás en otra casa. Para entrar en esta, cierra sesión (en Hogar) y crea una cuenta con otro email.', 'error');
         }
       }
       if (!vinculado.current) {
@@ -164,6 +170,7 @@ export function ProveedorDatos({ children }) {
       ultimaCarga.current = Date.now();
       setEnLinea(true);
       setEstado('listo');
+      setFresco(true);
       return nuevos;
     } catch (e) {
       console.error(e);
@@ -181,6 +188,7 @@ export function ProveedorDatos({ children }) {
       return;
     }
     vinculado.current = false;
+    setFresco(false);
     const cache = leer(CLAVE_CACHE, null);
     if (cache?.uid === uid && cache.datos?.hogar) {
       setDatos({ ...VACIO, ...cache.datos });
@@ -306,6 +314,8 @@ export function ProveedorDatos({ children }) {
   const notas = useMemo(() => resumenNotas(datos.valoraciones), [datos.valoraciones]);
   const medias = useMemo(() => mediasDe(notas), [notas]);
   const yo = datos.personas.find((p) => p.user_id === uid) || null;
+  // Las pantallas solo ven a quienes comen en casa (el tester entra a mirar sin aparecer)
+  const visibles = useMemo(() => quienesComen(datos.personas), [datos.personas]);
   const comensales = comensalesDe(datos.personas);
   const comensalesTexto = textoComensales(datos.personas);
 
@@ -441,14 +451,15 @@ export function ProveedorDatos({ children }) {
     return true;
   }
 
-  async function prepararSemana() {
+  // `momentos` y `diaCompra` sirven para preparar con otra configuración sin guardarla (la bienvenida del tester)
+  async function prepararSemana({ momentos, diaCompra } = {}) {
     const d = ref.current;
     const hoy = hoyISO();
     const { ingMap } = mapasDe(d);
     const orden = ordenarMenus(d.menus);
     const ultimo = orden[orden.length - 1] || null;
     const ultimoDia = ultimo ? finDelMenu(ultimo, d.comidas) : null;
-    const inicio = siguienteInicio(orden, d.hogar.dia_compra, hoy, ultimoDia);
+    const inicio = siguienteInicio(orden, diaCompra ?? d.hogar.dia_compra, hoy, ultimoDia);
     const recientes = new Set(d.comidas.filter((c) => c.menu_id === ultimo?.id).map((c) => c.receta_id));
     const huecos = generarSemana({
       inicio,
@@ -456,7 +467,7 @@ export function ProveedorDatos({ children }) {
       ingMap,
       restricciones: d.restricciones,
       reglas: d.hogar.reglas,
-      momentos: d.hogar.comidas,
+      momentos: momentos || d.hogar.comidas,
       recientes,
       medias: mediasDe(resumenNotas(d.valoraciones)),
       especial: especialDe(d.hogar),
@@ -508,6 +519,38 @@ export function ProveedorDatos({ children }) {
     comprobar(await supabase.from('menu_comidas').insert(huecos.map((h) => ({ ...h, menu_id: menu.id }))));
     await regenerarLista(menu);
     await cargar();
+  }
+
+  // ---- Bienvenida (casas con configuración guiada) ----
+  // La primera persona de la casa elige el día de compra y las comidas, y se prepara su primera semana
+  // desde hoy. Lo que hubiera de antes (las pruebas del tester) se borra: la casa empieza de cero.
+  // El tester ve lo mismo sin guardar nada: solo se prepara una semana si no hay ninguna, para tener qué enseñar.
+  async function configurarCasa({ diaCompra, comidas, demo = false }) {
+    const d = ref.current;
+    if (demo) {
+      if (!d.menus.length) await prepararSemana({ momentos: comidas, diaCompra });
+      return;
+    }
+    comprobar(await supabase.from('menus').delete().eq('hogar_id', d.hogar.id));
+    comprobar(await supabase.from('hogares').update({ dia_compra: diaCompra, comidas }).eq('id', d.hogar.id));
+    const limpio = { ...ref.current, hogar: { ...ref.current.hogar, dia_compra: diaCompra, comidas }, menus: [], comidas: [], lista: [] };
+    ref.current = limpio;
+    setDatos(limpio);
+    await prepararSemana();
+    const cambios = { configurado: new Date().toISOString(), configurado_por: d.personas.find((p) => p.user_id === uidRef.current)?.id ?? null };
+    comprobar(await supabase.from('hogares').update(cambios).eq('id', d.hogar.id));
+    setDatos((x) => ({ ...x, hogar: { ...x.hogar, ...cambios } }));
+    await cargar(); // y queda guardado en el móvil
+  }
+
+  async function tourVisto() {
+    const mia = ref.current.personas.find((p) => p.user_id === uidRef.current);
+    if (!mia) return;
+    const cuando = new Date().toISOString();
+    actualizarLocal('personas', mia.id, { tour_visto: cuando });
+    const r = await supabase.from('personas').update({ tour_visto: cuando }).eq('id', mia.id);
+    if (r.error) console.error(r.error);
+    else cargar(); // para que lo guardado en el móvil también lo sepa
   }
 
   // ---- Recetas ----
@@ -761,6 +804,13 @@ export function ProveedorDatos({ children }) {
   }
 
   // ---- Cuenta ----
+  // Para saludar por su nombre a quien abre una invitación: { nombre, bienvenida, oculta, otros } o null
+  async function leerInvitacion(token) {
+    const r = await supabase.rpc('datos_invitacion', { p_token: token });
+    if (r.error) throw r.error;
+    return (Array.isArray(r.data) ? r.data[0] : r.data) || null;
+  }
+
   async function entrar(email, clave) {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: clave });
     if (error) throw error;
@@ -788,6 +838,7 @@ export function ProveedorDatos({ children }) {
 
   const valor = {
     estado,
+    fresco,
     sesion,
     uid,
     yo,
@@ -797,6 +848,7 @@ export function ProveedorDatos({ children }) {
     comensales,
     comensalesTexto,
     ...datos,
+    personas: visibles,
     ...mapas,
     notas,
     medias,
@@ -810,6 +862,8 @@ export function ProveedorDatos({ children }) {
       moverComida,
       prepararSemana,
       rehacerSemana,
+      configurarCasa,
+      tourVisto,
       regenerarLista,
       subirFoto,
       marcarCocinada,
@@ -823,6 +877,7 @@ export function ProveedorDatos({ children }) {
       cambiarRacion,
       salirDeCasa,
       invitar,
+      leerInvitacion,
       entrar,
       crearCuenta,
       salir,

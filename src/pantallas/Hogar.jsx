@@ -8,8 +8,9 @@ import { GRUPOS, NIVELES, nombreRestriccion, reglasCompletas, esBloqueante } fro
 import { mensajeError } from '../supabase.js';
 import { VERSION } from '../config.js';
 import { esPeque, RACION_ADULTO, RACION_PEQUE } from '../logic/raciones.js';
-import { TEMAS, TEMA_INICIAL } from '../tema.js';
+import { TEMAS, TEMA_INICIAL, temasElegibles } from '../tema.js';
 import { Dibujo } from '../ui/Portada.jsx';
+import { pedirGuia } from '../ui/guia.js';
 
 const DIAS_COMPRA = [
   [1, 'Lunes'],
@@ -321,6 +322,37 @@ function AnadirPersona({ d }) {
   );
 }
 
+// Casas con bienvenida guiada: volver a ver la explicación. El tester, además, puede repetir la bienvenida
+function Guia({ d }) {
+  const tester = !!d.yo?.oculta;
+  const nombres = enumerar(d.personas.map((p) => p.nombre));
+  return (
+    <section className="guia-hogar" aria-label="Cómo funciona la app">
+      {tester ? (
+        <p className="aviso-tester" style={{ margin: 0 }}>
+          <b>Estás como tester.</b> No cuentas para las raciones ni sales en «Quiénes comen». Lo que cambies en el menú o en la lista sí
+          lo ven {nombres || 'los demás'}.
+        </p>
+      ) : null}
+      <span>
+        <b>¿Cómo funciona la app?</b>
+        <br />
+        <span className="meta">Una explicación de un minuto, paso a paso.</span>
+      </span>
+      <div className="fila-botones">
+        <button type="button" className="boton peq" onClick={() => pedirGuia({ tipo: 'tour', intro: 'repaso' })}>
+          Ver la explicación
+        </button>
+        {tester ? (
+          <button type="button" className="boton peq borde" onClick={() => pedirGuia({ tipo: 'bienvenida', demo: true })}>
+            Probar la bienvenida
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function Colores({ d }) {
   const actual = TEMAS[d.hogar?.tema] ? d.hogar.tema : TEMA_INICIAL;
   return (
@@ -329,7 +361,7 @@ function Colores({ d }) {
         Colores de la app
       </legend>
       <div className="temas">
-        {Object.entries(TEMAS).map(([id, t]) => (
+        {temasElegibles(actual).map(([id, t]) => (
           <button
             key={id}
             type="button"
@@ -387,6 +419,7 @@ export default function Hogar() {
       </section>
 
       <main className="cuerpo" style={{ gap: 22 }}>
+        {hogar?.bienvenida ? <Guia d={d} /> : null}
         <section className="bloque" style={{ gap: 10 }}>
           <h2 className="etiqueta-seccion" style={{ margin: 0 }}>
             Quiénes comen

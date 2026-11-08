@@ -5,6 +5,8 @@ import App from './App.jsx';
 import { aplicarTema, temaAlAbrir } from './tema.js';
 import '@fontsource-variable/bricolage-grotesque/opsz.css';
 import '@fontsource-variable/manrope/wght.css';
+// Letra del tema «Rock»: el navegador solo la descarga si se usa
+import '@fontsource/shrikhand/latin-400.css';
 import './estilos.css';
 import { PRUEBA } from './config.js';
 

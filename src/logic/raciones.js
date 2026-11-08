@@ -11,15 +11,20 @@ export function esPeque(persona) {
   return racionDe(persona) < RACION_ADULTO;
 }
 
+// Quien está oculto (el tester de una casa) entra a mirar, pero no come
+export function quienesComen(personas) {
+  return (personas || []).filter((p) => !p.oculta);
+}
+
 // Raciones de adulto que hay que cocinar y comprar (al menos 1)
 export function comensalesDe(personas) {
-  const total = (personas || []).reduce((suma, p) => suma + racionDe(p), 0);
+  const total = quienesComen(personas).reduce((suma, p) => suma + racionDe(p), 0);
   return Math.max(1, Math.round(total * 100) / 100);
 }
 
 // «2» o «2 + 2 peques»
 export function textoComensales(personas) {
-  const lista = personas || [];
+  const lista = quienesComen(personas);
   const peques = lista.filter(esPeque).length;
   const adultos = lista.length - peques;
   if (!lista.length) return '1';

@@ -20,7 +20,20 @@ export const TEMAS = {
     color: '#18364F',
     marca: { base: '#FFC48A', d1: '#18364F', d2: '#E0603F' },
   },
+  // Rock psicodélico de los 60 (la casa de Aina y Manu): el plato es un vinilo
+  rock: {
+    nombre: 'Rock',
+    descripcion: 'Morado y naranja, años 60',
+    color: '#2D1145',
+    marca: { base: '#FFB627', d1: '#2D1145', d2: '#E2366E', vinilo: true },
+    exclusivo: true, // solo lo ve en Hogar la casa que lo tiene
+  },
 };
+
+// Los que se pueden elegir en Hogar: los de siempre y, si es el caso, el propio de la casa
+export function temasElegibles(actual) {
+  return Object.entries(TEMAS).filter(([id, t]) => !t.exclusivo || id === actual);
+}
 
 function valido(id, porDefecto = BASE) {
   return Object.prototype.hasOwnProperty.call(TEMAS, id) ? id : porDefecto;

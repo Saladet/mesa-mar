@@ -151,7 +151,7 @@ export default function Cocinar({ recetaId, comidaId }) {
         <div className="fin-cocina">
           <h2>¡Que aproveche!</h2>
           <p>{receta.titulo}</p>
-          {d.yo ? (
+          {d.yo && !d.yo.oculta ? (
             <div className="fin-valorar">
               <span>{valor ? ETIQUETAS[valor] : 'Cuando lo probéis: ¿qué tal ha quedado?'}</span>
               <ElegirEstrellas

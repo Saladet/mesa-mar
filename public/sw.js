@@ -11,7 +11,7 @@ self.addEventListener('install', (evento) => {
       const html = await res.clone().text();
       await cache.put('./', res);
       const recursos = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1]);
-      await cache.addAll([...new Set([...recursos, './manifest.webmanifest', './icons/icon-192.png', './icons/favicon.svg', './manifest-mar.webmanifest', './icons/icon-192-mar.png', './icons/favicon-mar.svg'])]);
+      await cache.addAll([...new Set([...recursos, './manifest.webmanifest', './icons/icon-192.png', './icons/favicon.svg', './manifest-mar.webmanifest', './icons/icon-192-mar.png', './icons/favicon-mar.svg', './manifest-rock.webmanifest', './icons/icon-192-rock.png', './icons/favicon-rock.svg'])]);
     })().catch(() => {}),
   );
   self.skipWaiting();

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDatos, CLAVE_INVITACION } from './datos.jsx';
 import { useRuta, ir } from './ruta.js';
 import { hoyISO } from './logic/fechas.js';
@@ -18,6 +18,8 @@ import Cocinar from './pantallas/Cocinar.jsx';
 import Lista from './pantallas/Lista.jsx';
 import Recetas from './pantallas/Recetas.jsx';
 import Hogar from './pantallas/Hogar.jsx';
+import Bienvenida from './pantallas/Bienvenida.jsx';
+import Tour from './ui/Tour.jsx';
 
 function Cargando() {
   return (
@@ -39,10 +41,45 @@ function Aviso() {
 
 const CON_TABS = new Set(['semana', 'lista', 'recetas', 'hogar', 'cambiar']);
 
+// Casas con bienvenida guiada: qué le toca ver a esta persona al entrar (o nada)
+function guiaPendiente(hogar, yo) {
+  if (!hogar?.bienvenida || !yo) return null;
+  if (yo.oculta) {
+    // El tester la ve una vez (sin guardar nada); luego puede repetirla desde Hogar
+    if (yo.tour_visto) return null;
+    return hogar.configurado ? { tipo: 'tour', intro: 'otro' } : { tipo: 'bienvenida', demo: true };
+  }
+  if (!hogar.configurado) return { tipo: 'bienvenida', demo: false };
+  if (!yo.tour_visto) return { tipo: 'tour', intro: 'otro' };
+  return null;
+}
+
 export default function App() {
   const ruta = useRuta();
   const d = useDatos();
   const tema = d.hogar?.tema;
+  // La guía que se está viendo. La pendiente se fija al empezar, para que no cambie a medias
+  const [guia, setGuia] = useState(null);
+  const [descartada, setDescartada] = useState(false);
+  // Solo con lo recién llegado del servidor: lo guardado en el móvil puede ser de antes de configurar
+  const pendiente = d.fresco ? guiaPendiente(d.hogar, d.yo) : null;
+  const activa = guia || (descartada ? null : pendiente);
+
+  useEffect(() => {
+    if (!guia && !descartada && pendiente) setGuia(pendiente);
+  }, [guia, descartada, pendiente?.tipo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Desde Hogar: «Ver la explicación otra vez» / «Probar la bienvenida»
+  useEffect(() => {
+    const pedir = (e) => setGuia(e.detail);
+    window.addEventListener('mesa-guia', pedir);
+    return () => window.removeEventListener('mesa-guia', pedir);
+  }, []);
+
+  function cerrarGuia() {
+    setGuia(null);
+    setDescartada(true);
+  }
 
   // Los colores de la casa
   useEffect(() => {
@@ -83,6 +120,22 @@ export default function App() {
     return (
       <>
         <SinHogar />
+        <Aviso />
+      </>
+    );
+  }
+
+  if (activa?.tipo === 'bienvenida') {
+    return (
+      <>
+        <Bienvenida
+          demo={activa.demo}
+          alTerminar={(siguiente) => {
+            if (siguiente === 'tour') setGuia({ tipo: 'tour', intro: 'nueva' });
+            else cerrarGuia();
+            ir('semana', { reemplazar: true });
+          }}
+        />
         <Aviso />
       </>
     );
@@ -141,7 +194,18 @@ export default function App() {
       {!d.enLinea ? <div className="sin-red">Sin conexión: ves lo último guardado. Lo que marques se guardará al volver la red.</div> : null}
       {pantalla}
       {conTabs ? <Tabs actual={actual} pendientes={pendientes} /> : null}
-      {PRUEBA ? null : <Instalar />}
+      {activa?.tipo === 'tour' ? (
+        <Tour
+          key={`tour-${activa.intro}`}
+          intro={activa.intro}
+          alTerminar={() => {
+            d.acciones.tourVisto();
+            cerrarGuia();
+            ir('semana');
+          }}
+        />
+      ) : null}
+      {PRUEBA || activa ? null : <Instalar />}
       <Aviso />
     </>
   );

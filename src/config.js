@@ -2,7 +2,7 @@
 // lo que protege los datos son las políticas de seguridad de cada tabla).
 export const SUPABASE_URL = 'https://ijvbladbmesqaztbbcpt.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_SIbvvUIkwvQ-Midac-wGOA_V2xdwE4x';
-export const VERSION = '1.1';
+export const VERSION = '1.2';
 
 // Esta Mesa comparte dominio (saladet.github.io) con otras: todo lo que guarda en el móvil
 // lleva este prefijo para no pisarse con ellas.
